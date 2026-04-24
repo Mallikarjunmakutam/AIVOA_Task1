@@ -8,6 +8,7 @@ import {
   selectInteractions,
   selectInteractionsLoading,
   selectSearchQuery,
+  selectSearchResults,
 } from '../features/interactionsSlice';
 
 const getStatusBadge = (status) => {
@@ -28,13 +29,17 @@ const getStatusBadge = (status) => {
 const InteractionHistory = ({ onEdit, onRefresh }) => {
   const dispatch = useDispatch();
   const data = useSelector(selectInteractions);
+  const searchResults = useSelector(selectSearchResults);
   const loading = useSelector(selectInteractionsLoading);
   const searchQuery = useSelector(selectSearchQuery);
 
-  // Fetch on mount and whenever searchQuery changes
+  const displayData = searchQuery.trim() ? searchResults : data;
+
+  // Fetch on mount and whenever onRefresh is called (which uses fetchInteractions)
   useEffect(() => {
-    dispatch(fetchInteractions(searchQuery));
-  }, [dispatch, searchQuery]);
+    dispatch(fetchInteractions());
+  }, [dispatch]);
+
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this interaction?')) return;
@@ -50,12 +55,8 @@ const InteractionHistory = ({ onEdit, onRefresh }) => {
         <h2 className="text-lg font-semibold text-gray-800 flex items-center">
           <History className="w-5 h-5 mr-2 text-indigo-600" />
           Interaction History
-          {searchQuery && (
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              — results for "<span className="text-indigo-600 font-medium">{searchQuery}</span>"
-            </span>
-          )}
         </h2>
+
         <button
           onClick={onRefresh}
           className="flex items-center gap-1 text-sm text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
@@ -80,7 +81,7 @@ const InteractionHistory = ({ onEdit, onRefresh }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {data.map((row) => (
+              {displayData.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col">
@@ -120,11 +121,12 @@ const InteractionHistory = ({ onEdit, onRefresh }) => {
             </tbody>
           </table>
         )}
-        {!loading && data.length === 0 && (
+        {!loading && displayData.length === 0 && (
           <div className="py-12 text-center text-gray-500">
-            {searchQuery ? `No interactions found matching "${searchQuery}"` : 'No interactions logged yet.'}
+            {searchQuery.trim() ? `No results found for "${searchQuery}"` : 'No interactions logged yet.'}
           </div>
         )}
+
       </div>
     </div>
   );

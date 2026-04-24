@@ -10,11 +10,11 @@ print("Database tables created/verified successfully.")
 
 app = FastAPI(title="Healthcare CRM Dashboard API")
 
-# Configure CORS for React frontend (Vite defaults to 5173)
+# Configure CORS to accept all origins dynamically to prevent varying Vite ports (e.g. 5174) from getting CORS blocked.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

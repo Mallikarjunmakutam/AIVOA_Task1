@@ -6,12 +6,9 @@ const API = 'http://127.0.0.1:8000';
 
 export const fetchInteractions = createAsyncThunk(
   'interactions/fetchAll',
-  async (searchQuery = '', { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const url = searchQuery
-        ? `${API}/api/interactions?search=${encodeURIComponent(searchQuery)}`
-        : `${API}/api/interactions`;
-      const response = await fetch(url);
+      const response = await fetch(`${API}/api/interactions`);
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       return Array.isArray(data) ? data : [];
@@ -20,6 +17,23 @@ export const fetchInteractions = createAsyncThunk(
     }
   }
 );
+
+export const searchInteractions = createAsyncThunk(
+  'interactions/search',
+  async (searchQuery = '', { rejectWithValue }) => {
+    try {
+      if (!searchQuery) return [];
+      const url = `${API}/api/interactions?search=${encodeURIComponent(searchQuery)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to search');
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 
 export const createInteraction = createAsyncThunk(
   'interactions/create',
@@ -82,7 +96,9 @@ const interactionsSlice = createSlice({
   name: 'interactions',
   initialState: {
     list: [],
+    searchResults: [],
     loading: false,
+    searchLoading: false,
     error: null,
     searchQuery: '',
   },
@@ -90,9 +106,13 @@ const interactionsSlice = createSlice({
     setSearchQuery(state, action) {
       state.searchQuery = action.payload;
     },
+    clearSearchResults(state) {
+      state.searchResults = [];
+      state.searchQuery = '';
+    }
   },
   extraReducers: (builder) => {
-    // fetchInteractions
+    // fetchInteractions (Main List)
     builder
       .addCase(fetchInteractions.pending, (state) => {
         state.loading = true;
@@ -106,6 +126,21 @@ const interactionsSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+
+    // searchInteractions (Header Search)
+    builder
+      .addCase(searchInteractions.pending, (state) => {
+        state.searchLoading = true;
+      })
+      .addCase(searchInteractions.fulfilled, (state, action) => {
+        state.searchLoading = false;
+        state.searchResults = action.payload;
+      })
+      .addCase(searchInteractions.rejected, (state) => {
+        state.searchLoading = false;
+        state.searchResults = [];
+      });
+
 
     // createInteraction
     builder
@@ -126,6 +161,9 @@ const interactionsSlice = createSlice({
         state.loading = false;
         const idx = state.list.findIndex((i) => i.id === action.payload.id);
         if (idx !== -1) state.list[idx] = action.payload;
+        
+        const searchIdx = state.searchResults.findIndex((i) => i.id === action.payload.id);
+        if (searchIdx !== -1) state.searchResults[searchIdx] = action.payload;
       })
       .addCase(updateInteraction.rejected, (state, action) => {
         state.loading = false;
@@ -138,6 +176,7 @@ const interactionsSlice = createSlice({
       .addCase(deleteInteraction.fulfilled, (state, action) => {
         state.loading = false;
         state.list = state.list.filter((i) => i.id !== action.payload);
+        state.searchResults = state.searchResults.filter((i) => i.id !== action.payload);
       })
       .addCase(deleteInteraction.rejected, (state, action) => {
         state.loading = false;
@@ -146,11 +185,14 @@ const interactionsSlice = createSlice({
   },
 });
 
-export const { setSearchQuery } = interactionsSlice.actions;
+export const { setSearchQuery, clearSearchResults } = interactionsSlice.actions;
+
 
 // ── Selectors ─────────────────────────────────────────────────────────────────
 export const selectInteractions = (state) => state.interactions.list;
+export const selectSearchResults = (state) => state.interactions.searchResults;
 export const selectInteractionsLoading = (state) => state.interactions.loading;
+export const selectSearchLoading = (state) => state.interactions.searchLoading;
 export const selectInteractionsError = (state) => state.interactions.error;
 export const selectSearchQuery = (state) => state.interactions.searchQuery;
 

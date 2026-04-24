@@ -21,23 +21,40 @@ def search_interactions(query: str) -> str:
     """Useful to search through past interactions."""
     return f"Search results for '{query}': Found 2 past interactions matching the criteria."
 
-# 4. sentiment_analysis
 @tool
 def sentiment_analysis(notes: str) -> str:
     """Analyzes the sentiment of meeting notes. Returns positive, neutral, or negative."""
-    # Simple mock logic
-    notes_lower = notes.lower()
-    if "great" in notes_lower or "interested" in notes_lower:
-        return "positive"
-    elif "bad" in notes_lower or "not interested" in notes_lower:
-        return "negative"
-    return "neutral"
+    try:
+        from services.groq_service import get_groq_llm
+        from langchain_core.messages import SystemMessage, HumanMessage
+        llm = get_groq_llm()
+        messages = [
+            SystemMessage(content="You are an expert sentiment analyzer. Classify the following text strictly as one of: positive, neutral, or negative. Do not reply with anything else."),
+            HumanMessage(content=notes)
+        ]
+        response = llm.invoke(messages)
+        return response.content.strip().lower()
+    except Exception as e:
+        print(f"Sentiment analysis error: {e}")
+        return "neutral"
 
 # 5. followup_suggestion
 @tool
 def followup_suggestion(doctor_name: str, product_discussed: str) -> str:
     """Generates an AI suggestion for next follow-up action based on product and doctor."""
-    return f"Suggestion: Follow up with {doctor_name} next week with a clinical trial report on {product_discussed}."
+    try:
+        from services.groq_service import get_groq_llm
+        from langchain_core.messages import SystemMessage, HumanMessage
+        llm = get_groq_llm()
+        messages = [
+            SystemMessage(content="You are a medical sales CRM assistant. Provide a single, short, concise sentence suggesting the next follow-up step."),
+            HumanMessage(content=f"Doctor Name: {doctor_name}\nProduct Discussed: {product_discussed}")
+        ]
+        response = llm.invoke(messages)
+        return f"Suggestion: {response.content.strip()}"
+    except Exception as e:
+        print(f"Follow-up suggestion error: {e}")
+        return f"Suggestion: Follow up with {doctor_name} next week regarding {product_discussed}."
 
 tools = [
     log_interaction,

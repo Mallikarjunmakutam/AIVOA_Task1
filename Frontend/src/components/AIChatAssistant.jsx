@@ -17,11 +17,18 @@ const AIChatAssistant = () => {
   const status = useSelector(selectChatStatus);
 
   const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
+
 
   useEffect(() => {
     scrollToBottom();
@@ -63,7 +70,11 @@ const AIChatAssistant = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50"
+      >
+
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex max-w-[85%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -100,7 +111,7 @@ const AIChatAssistant = () => {
           </div>
         )}
 
-        <div ref={messagesEndRef} />
+
       </div>
 
       {/* Input Area */}

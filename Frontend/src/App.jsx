@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import InteractionForm from './components/InteractionForm';
 import AIChatAssistant from './components/AIChatAssistant';
 import InteractionHistory from './components/InteractionHistory';
-import { Stethoscope, Bell, Search, Menu } from 'lucide-react';
+import { Stethoscope, Bell, Search, Menu, Loader2 } from 'lucide-react';
+
 
 import {
   setSelectedInteraction,
@@ -12,14 +13,24 @@ import {
 } from './features/uiSlice';
 import {
   fetchInteractions,
+  searchInteractions,
   setSearchQuery,
+  clearSearchResults,
   selectSearchQuery,
+  selectSearchResults,
+  selectSearchLoading,
 } from './features/interactionsSlice';
+
 
 function App() {
   const dispatch = useDispatch();
   const selectedInteraction = useSelector(selectSelectedInteraction);
   const searchQuery = useSelector(selectSearchQuery);
+  const searchResults = useSelector(selectSearchResults);
+  const searchLoading = useSelector(selectSearchLoading);
+  const [showResults, setShowResults] = React.useState(false);
+  const searchRef = React.useRef(null);
+
 
   const handleEditSelect = useCallback(
     (interaction) => {
@@ -31,21 +42,53 @@ function App() {
 
   const handleFormSuccess = useCallback(() => {
     dispatch(clearSelectedInteraction());
-    dispatch(fetchInteractions(searchQuery));
+    dispatch(fetchInteractions());
+    if (searchQuery.trim()) {
+      dispatch(searchInteractions(searchQuery));
+    }
   }, [dispatch, searchQuery]);
 
+
   const handleRefresh = useCallback(() => {
-    dispatch(fetchInteractions(searchQuery));
+    dispatch(fetchInteractions());
+    if (searchQuery.trim()) {
+      dispatch(searchInteractions(searchQuery));
+    }
   }, [dispatch, searchQuery]);
+
 
   const handleSearchChange = useCallback(
     (e) => {
       const query = e.target.value;
       dispatch(setSearchQuery(query));
-      dispatch(fetchInteractions(query));
+      if (query.trim()) {
+        dispatch(searchInteractions(query));
+        setShowResults(true);
+      } else {
+        dispatch(clearSearchResults());
+        setShowResults(false);
+      }
     },
     [dispatch]
   );
+
+  const handleResultClick = useCallback((interaction) => {
+    dispatch(setSelectedInteraction(interaction));
+    setShowResults(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [dispatch]);
+
+  // Handle click outside to close search results
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -66,7 +109,7 @@ function App() {
             </div>
 
             <div className="flex items-center space-x-4 flex-1 justify-end">
-              <div className="hidden md:flex max-w-md w-full relative">
+              <div className="hidden md:flex max-w-md w-full relative" ref={searchRef}>
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
                 </div>
@@ -74,10 +117,49 @@ function App() {
                   type="text"
                   value={searchQuery}
                   onChange={handleSearchChange}
+                  onFocus={() => searchQuery.trim() && setShowResults(true)}
                   placeholder="Search doctors, hospitals..."
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-shadow"
                 />
+                
+                {/* Search Results Dropdown */}
+                {showResults && (searchQuery.trim() || searchLoading) && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-96 overflow-y-auto z-50">
+                    {searchLoading ? (
+                      <div className="p-4 text-center text-gray-500 flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Searching...</span>
+                      </div>
+                    ) : searchResults.length > 0 ? (
+                      <div className="py-2">
+                        {searchResults.map((result) => (
+                          <div 
+                            key={result.id}
+                            onClick={() => handleResultClick(result)}
+                            className="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{result.doctor_name}</p>
+                                <p className="text-xs text-gray-500">{result.hospital_name}</p>
+                              </div>
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                                {result.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1 truncate">{result.product_discussed}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        No results found for "{searchQuery}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
               <button className="p-2 text-gray-400 hover:text-gray-500 relative focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-full">
                 <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                 <Bell className="h-6 w-6" />
